@@ -6,10 +6,8 @@ struct ListNode {
     next: Option<Box<ListNode>>,    // next defines a pointer to the next element
 }
 
-
 /* Implementation of constructor */ 
 impl ListNode {
-
     /* 
      * Constructor to create a new node and initialize 
      * its data as signed 32-bit integet 
@@ -22,4 +20,5 @@ impl ListNode {
     }
 
 }
+
 

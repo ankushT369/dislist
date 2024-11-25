@@ -3,7 +3,8 @@
 
 #include <stdint.h>
 
-#define PORT 7878
+#define PORT 8080
+#define BUFFER_SIZE 1024
 
 /* node information track */
 typedef struct node_info_track {
@@ -24,6 +25,19 @@ typedef struct server_info {
 
 } s_info;
 
+typedef struct machine_info {
+
+    char* ip_address;
+
+    char* process_name;
+
+} m_info;
+
+typedef struct machine_list {
+
+    struct machine_info;
+
+} m_list;
 
 /* Active the Node manager server */
 void activate_server();
