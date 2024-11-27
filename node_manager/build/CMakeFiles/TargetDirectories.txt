@@ -1,3 +1,0 @@
-/home/ankush/dislist/node_manager/build/CMakeFiles/server.dir
-/home/ankush/dislist/node_manager/build/CMakeFiles/edit_cache.dir
-/home/ankush/dislist/node_manager/build/CMakeFiles/rebuild_cache.dir
