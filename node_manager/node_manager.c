@@ -8,40 +8,156 @@
 
 #include "node_manager.h"
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/select.h>
 #include <unistd.h>
-#include <arpa/inet.h>
 
-void handle_client(int client_socket) {
-    char buffer[BUFFER_SIZE] = {0};
-    read(client_socket, buffer, sizeof(buffer));
+void new_client_connection(s_info server, fd_set readfds, s_addr server_addr) {
 
-    //if (strncmp(buffer, "INSERT", 6) == 0) {
-        printf("Received data: %s\n", buffer); 
-    //}
+        if (FD_ISSET(server.sfd, &readfds)) {
+        server.cfd = accept(server.sfd, (struct sockaddr *)&(server_addr.caddr), &(server_addr.caddr_len));
+        if (server.cfd < 0) {
+            perror("Accept failed");
+            exit(EXIT_FAILURE);
+        }
 
-    const char *response = "Data received, insertion successful.";
-    write(client_socket, response, strlen(response));
+        printf("New client connected: socket FD %d, IP: %s, PORT: %d\n",
+               server.cfd, inet_ntoa(server_addr.caddr.sin_addr), ntohs(server_addr.caddr.sin_port));
+
+        // Add new client to the client array
+        for (int i = 0; i < MAX_CONNECTIONS; i++) {
+            if (client_socket[i] == 0) {
+                client_socket[i] = server.cfd;
+                printf("Adding client to list at index %d\n", i);
+                break;
+            }
+        }
+    }
+}
+
+void client_server_interaction(fd_set readfds) {
+    char server_message[BUFFER_SIZE];
+    int target_client = -1;
+
+    if (FD_ISSET(STDIN_FILENO, &readfds)) {
+        fgets(server_message, sizeof(server_message), stdin);
+
+        // Check input
+        if (sscanf(server_message, "%d", &target_client) == 1 && target_client >= 0 && target_client < MAX_CONNECTIONS) {
+            if (client_socket[target_client] > 0) {
+                printf("Enter message to send to client %d: ", target_client);
+                fgets(server_message, sizeof(server_message), stdin);
+                server_message[strcspn(server_message, "\n")] = '\0'; // Remove newline
+                send(client_socket[target_client], server_message, strlen(server_message), 0);
+                printf("Message sent to client %d: %s\n", target_client, server_message);
+            } else {
+                printf("Client %d is not connected.\n", target_client);
+            }
+        } else {
+            printf("No valid client selected.\n");
+        }
+    }
+
+}
+
+void client_message(fd_set readfds) {
+    char buffer[BUFFER_SIZE];
+
+    for (int i = 0; i < MAX_CONNECTIONS; i++) {
+        sd = client_socket[i];
+
+        if (FD_ISSET(sd, &readfds)) {
+            if(sd != 0) {
+                int bytes_read = read(sd, buffer, sizeof(buffer));
+                if (bytes_read == 0) {
+                    // Client disconnected
+                    printf("Client disconnected: socket FD %d\n", sd);
+                    close(sd);
+                    client_socket[i] = 0;
+                    break;
+                } 
+                else {
+                    // Print message from client
+                    buffer[bytes_read] = '\0'; // Null-terminate the string
+                    printf("Message from client %d: %s\n", sd, buffer);
+                    break;
+                }
+            }
+        }
+    }
+
+}
+
+void event_loop(s_info server, s_addr server_addr) {
+    fd_set readfds;
+
+    while(1) {
+        FD_ZERO(&readfds);
+        // Add the server socket to the set
+        FD_SET(server.sfd, &readfds);
+        max_fd = server.sfd;
+
+        // Add client sockets to the set
+        for (int i = 0; i < MAX_CONNECTIONS; i++) {
+            sd = client_socket[i];
+            if (sd > 0) {
+                FD_SET(sd, &readfds);
+            }
+            if (sd > max_fd) {
+                max_fd = sd;
+            }
+        }
+
+        // Add stdin (server input) to the set
+        FD_SET(STDIN_FILENO, &readfds);
+        if (STDIN_FILENO > max_fd) {
+            max_fd = STDIN_FILENO;
+        }
+
+        // Wait for activity on one of the sockets
+        activity = select(max_fd + 1, &readfds, NULL, NULL, NULL);
+        if ((activity < 0) && (errno != EINTR)) {
+            perror("Select error");
+        }
+
+        new_client_connection(server, readfds, server_addr);
+
+        client_server_interaction(readfds);
+
+        client_message(readfds);
+    }
+
 }
 
 void activate_server() {
     s_info server;
+    s_addr server_addr;
+    int opt = 1;
 
+    /*
     struct sockaddr_in address;
     socklen_t addr_len = sizeof(address);
+    */
 
     if ((server.sfd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
         perror("Socket failed");
         exit(EXIT_FAILURE);
     }
     
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(PORT);
+    if (setsockopt(server.sfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
+        perror("setsockopt failed");
+        close(server.sfd);
+        exit(EXIT_FAILURE);
+    }
+    
+    server_addr.addr.sin_family = AF_INET;
+    server_addr.addr.sin_addr.s_addr = INADDR_ANY;
+    server_addr.addr.sin_port = htons(PORT);
 
-    if (bind(server.sfd, (struct sockaddr *)&address, sizeof(address)) < 0) {
+    if (bind(server.sfd, (struct sockaddr *)&(server_addr.addr), sizeof(server_addr.addr)) < 0) {
         perror("Bind failed");
         exit(EXIT_FAILURE);
     }
@@ -52,14 +168,10 @@ void activate_server() {
     }
 
     printf("========Server Started Monitoring Linked List=======\n");
-    printf("Port : %d\n", PORT);
 
-    if ((server.cfd= accept(server.sfd, (struct sockaddr *)&address, &addr_len)) < 0) {
-        perror("Accept failed");
-        exit(EXIT_FAILURE);
-    }
+    /* Event-loop starts */
+    event_loop(server, server_addr);
 
-    handle_client(server.cfd);
     close(server.cfd);
     close(server.sfd);
 }

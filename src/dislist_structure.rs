@@ -1,4 +1,4 @@
-pub const MEMORY: usize = 1024 * 1024;
+pub const MEMORY: usize = 20;
 
 /* LinkList Node Structure */
 pub struct ListNode {
