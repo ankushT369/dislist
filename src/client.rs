@@ -8,25 +8,50 @@ struct ClientEventData {
     limit: bool,            // ensures out of bound memory
 }
 
-pub fn activate_client() {
-    let mut client_stream = match TcpStream::connect("127.0.0.1:8080") {
+impl ClientEventData {
+    fn serialize(&self) -> Vec<u8> {
+        let mut vector = Vec::new();
+        vector.extend(&self.memory_size.to_le_bytes());
+        vector.extend(&self.node_count.to_le_bytes());
+        vector.push(self.limit as u8);
+        vector
+    }
+}
+
+pub fn activate_client() -> Option<TcpStream> {
+    match TcpStream::connect("127.0.0.1:8080") {
         Ok(stream) => {
             println!("Connection established!");
-            stream // Return the stream to the client_stream variable
+            Some(stream)
         }
         Err(e) => {
             println!("Failed to connect: {}", e);
-            return; // Exit the function if the connection fails
+            None
         }
-    };
+    }
 
-    //let data = b"Hello!!";
+}
 
-    client_stream.write(data)
-        .expect("Failed to send data");
-
+pub fn get_data(mut stream: TcpStream) -> [u8; 512] {
     let mut buffer = [0; 512];
-    client_stream.read(&mut buffer)
+    stream.read(&mut buffer)
         .expect("Failed to read response");
 
+    /*
+    match String::from_utf8(buffer.to_vec()) {
+        Ok(data) => {
+            println!("Received data: {}", data);
+        },
+        Err(_) => {
+            println!("Failed to convert buffer to valid UTF-8.");
+        }
+    }
+    */
+
+    buffer
+}
+
+pub fn send_data(mut stream: TcpStream, data: &[u8]) {
+    stream.write(&data)
+        .expect("Failed to send data");
 }

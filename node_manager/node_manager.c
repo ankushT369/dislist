@@ -63,8 +63,8 @@ void client_server_interaction(fd_set readfds) {
             printf("No valid client selected.\n");
         }
     }
-
 }
+
 
 void client_message(fd_set readfds) {
     char buffer[BUFFER_SIZE];
@@ -104,7 +104,7 @@ void event_loop(s_info server, s_addr server_addr) {
     uint8_t input;
 
     while(1) {
-        system("clear");
+        //system("clear");
         printf("========Server Started Monitoring Linked List=======\n");
         /*
         printf("Server hosted in : socket FD%d\n", PORT);
@@ -194,7 +194,7 @@ void activate_server() {
     /* Event-loop starts */
     event_loop(server, server_addr);
 
-    close(server.cfd);
+    // close(server.cfd);
     close(server.sfd);
 }
 
