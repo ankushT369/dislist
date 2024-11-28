@@ -15,6 +15,8 @@
 #include <sys/select.h>
 #include <unistd.h>
 
+uint32_t client_count_track = 0;
+
 void new_client_connection(s_info server, fd_set readfds, s_addr server_addr) {
 
         if (FD_ISSET(server.sfd, &readfds)) {
@@ -31,6 +33,7 @@ void new_client_connection(s_info server, fd_set readfds, s_addr server_addr) {
         for (int i = 0; i < MAX_CONNECTIONS; i++) {
             if (client_socket[i] == 0) {
                 client_socket[i] = server.cfd;
+                client_count_track++;
                 printf("Adding client to list at index %d\n", i);
                 break;
             }
@@ -74,6 +77,7 @@ void client_message(fd_set readfds) {
                 int bytes_read = read(sd, buffer, sizeof(buffer));
                 if (bytes_read == 0) {
                     // Client disconnected
+                    client_count_track--;
                     printf("Client disconnected: socket FD %d\n", sd);
                     close(sd);
                     client_socket[i] = 0;
@@ -91,10 +95,29 @@ void client_message(fd_set readfds) {
 
 }
 
+void connected_client_details() {
+
+}
+
 void event_loop(s_info server, s_addr server_addr) {
     fd_set readfds;
+    uint8_t input;
 
     while(1) {
+        system("clear");
+        printf("========Server Started Monitoring Linked List=======\n");
+        /*
+        printf("Server hosted in : socket FD%d\n", PORT);
+        socket FD %d, IP: %s, PORT: %d\n
+        */
+        printf("Server Connected : socket FD %d, IP: %s, PORT: %d\n",
+               server.sfd, inet_ntoa(server_addr.addr.sin_addr), ntohs(server_addr.addr.sin_port));
+
+        printf("Client Connected : %d\n", client_count_track);
+        printf("[1] Display Connected info.\n");
+        printf("[2] Opeation on linkedlist.\n");
+        //printf("");
+
         FD_ZERO(&readfds);
         // Add the server socket to the set
         FD_SET(server.sfd, &readfds);
@@ -167,7 +190,6 @@ void activate_server() {
         exit(EXIT_FAILURE);
     }
 
-    printf("========Server Started Monitoring Linked List=======\n");
 
     /* Event-loop starts */
     event_loop(server, server_addr);
