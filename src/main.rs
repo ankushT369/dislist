@@ -34,9 +34,7 @@ fn main() {
                         }
                     }
                     else if info.ins_type == Instruction::REMOVE {
-                        if info.has_value == true {
-                            list.pop_back();
-                        }
+                        list.pop_back();
                     }
                     else {
                         /* Implementation for TRAVERSE */ 
@@ -56,8 +54,8 @@ fn main() {
 
                 }
                 Err(stat) => {
-                    client_data_instance.memory_size = 4 * list.len() as i32;
-                    client_data_instance.node_count = list.len() as u32;
+                    client_data_instance.memory_size =  0;/*4 * list.len() as i32'*/
+                    client_data_instance.node_count = 0;/*list.len() as u32;*/
 
                     if client_data_instance.memory_size < MEMORY.try_into().unwrap() {
                         client_data_instance.limit = true;

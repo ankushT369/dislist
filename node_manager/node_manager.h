@@ -36,12 +36,20 @@ int max_fd = 0, activity = -1, sd = -1;
 
 //int client_socket[MAX_CONNECTIONS] = {0};
 
+/*
 typedef struct node_info_track {
-    int32_t memory;
-    uint32_t nodes_count;
+    int32_t memory_size;
+    uint32_t node_count;
     bool limit;
     uint32_t status_code; 
 
+} n_info;
+*/
+typedef struct __attribute__((__packed__)) {
+    int32_t memory_size;    // 4 bytes
+    uint32_t node_count;    // 4 bytes
+    bool limit;             // 1 byte
+    int32_t status_code;    // 4 bytes
 } n_info;
 
 
@@ -66,17 +74,12 @@ typedef enum operations {
     INVALID,
 } c_ops;
 
-enum ip_addr {
-    IP4,
-    IP6,
-};
-
 typedef struct machine_info {
     char* ip_address;
-    enum ip_addr ip_type;
     bool assigned;
     bool now_node;
     uint8_t client_socket;
+    uint8_t nodes_number;
 } m_list;
 
 
@@ -88,6 +91,10 @@ void client_server_interaction(fd_set);
 void client_message(fd_set);
 void connected_client_details();
 int check_free_client();
+n_info deserialize_node_info(unsigned char*);
+void update_list(n_info);
 
+/* For Debugging purposes */
+void print(n_info);
 
 #endif // NODE_MANAGER_H

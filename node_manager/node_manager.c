@@ -18,14 +18,55 @@
 
 uint32_t client_count_track = 0;
 uint8_t client_connection_flag = 0;
+bool control_flag = true;
+int32_t memory_track = 0;
+uint32_t nodes = 0;
+
+
 m_list list[MAX_CONNECTIONS];
 char log_buffer[1024];
-bool control_flag = true;
-//enum ip_addr ip;
+
+n_info node;
+
+// Deserialize the received buffer into a NodeInfo struct
+n_info deserialize_node_info(unsigned char *buffer) {
+    n_info event;
+
+    // Deserialize memory_size (int32_t)
+    memcpy(&event.memory_size, buffer, sizeof(int32_t));
+
+    // Deserialize node_count (uint32_t)
+    memcpy(&event.node_count, buffer + sizeof(int32_t), sizeof(uint32_t));
+
+    // Deserialize limit (bool)
+    event.limit = *(buffer + sizeof(int32_t) + sizeof(uint32_t));
+
+    // Deserialize status (Status, which is represented as int32_t)
+    event.status_code = *(buffer + sizeof(int32_t) + sizeof(uint32_t) + sizeof(bool));
+
+    return event;
+}
+
+void update_list(n_info node) {
+    nodes = 0;
+    memory_track = 0;
+    for(int i = 0; i < MAX_CONNECTIONS; i++) {
+        nodes += list[i].nodes_number;
+    }
+    memory_track += 4 * nodes;
+}
+
+/* For Debug Purposes */
+void print(n_info node) {
+    printf("%d\n", node.memory_size);
+    printf("%d\n", node.node_count);
+    printf("%d\n", node.limit);
+    printf("%d\n", node.status_code);
+}
 
 int check_free_client() {
     for(int i = 0; i < MAX_CONNECTIONS; i++) {
-        if((list[i].assigned == false) && (list[i].now_node == false)) {
+        if((list[i].assigned == false) && (list[i].now_node == true)) {
             return i; 
         }
     }
@@ -59,11 +100,11 @@ void new_client_connection(s_info server, fd_set readfds, s_addr server_addr) {
         // Add new client to the client array
         for (int i = 0; i < MAX_CONNECTIONS; i++) {
             if (list[i].client_socket == 0) {
-                list[i].ip_type = IP4;
                 list[i].client_socket = server.cfd;
                 list[i].ip_address = inet_ntoa(server_addr.caddr.sin_addr);
-                list[i].now_node = false;
+                list[i].now_node = true;
                 list[i].assigned = false;
+                list[i].nodes_number = 0;
                 
                 client_count_track++;
                 // printf("Adding client to list at index %d\n", i);
@@ -105,7 +146,7 @@ void client_server_interaction(fd_set readfds) {
                     }
                 }
                 else {
-                    strcpy(log_buffer, "No valid number selected");
+                    strcpy(log_buffer, "No Extra client left !!");
                     //printf("No valid client selected.\n");
                 }
             }
@@ -117,28 +158,13 @@ void client_server_interaction(fd_set readfds) {
                 strcpy(log_buffer, "No valid number selected");
                 //printf("No valid number selected.\n");
             }
-            /*
-            if (sscanf(server_message, "%d", &code) == 1 && target_client >= 0 && target_client < MAX_CONNECTIONS) {
-                if (client_socket[target_client] > 0) {
-                    printf("Enter message to send to client %d: ", target_client);
-                    fgets(server_message, sizeof(server_message), stdin);
-                    server_message[strcspn(server_message, "\n")] = '\0'; // Remove newline
-                    send(client_socket[target_client], server_message, strlen(server_message), 0);
-                    printf("Message sent to client %d: %s\n", target_client, server_message);
-                } else {
-                    printf("Client %d is not connected.\n", target_client);
-                }
-            } else {
-
-            }
-            */
         }
     }
 }
 
 
 void client_message(fd_set readfds) {
-    char buffer[BUFFER_SIZE];
+    unsigned char buffer[BUFFER_SIZE];
     FILE *log_file = fopen("client_info.log", "a"); // Open file in append mode
     if (log_file == NULL) {
         perror("Error opening log file");
@@ -146,8 +172,6 @@ void client_message(fd_set readfds) {
     }
 
     for (int i = 0; i < MAX_CONNECTIONS; i++) {
-        //sd = client_socket[i];
-
         sd = list[i].client_socket;
 
         if (FD_ISSET(sd, &readfds)) {
@@ -164,12 +188,29 @@ void client_message(fd_set readfds) {
                     fclose(log_file);
                     close(sd);
                     list[i].client_socket = 0;
+                    list[i].assigned = false;
+                    list[i].now_node = false;
+                    list[i].nodes_number = 0;
+
                     break;
                 } 
                 else {
                     // Print message from client
                     buffer[bytes_read] = '\0'; // Null-terminate the string
-                    //handle_response_code(200, log_buffer);
+                    node = deserialize_node_info(buffer);
+                    //print(node);
+                    handle_response_code(node.status_code, log_buffer);
+
+                    if(node.status_code == 200) {
+                        list[i].nodes_number = node.node_count;
+                    }
+
+                    update_list(node);
+
+                    if(node.limit == true) {
+                        list[i].now_node = false;
+                        list[i].assigned = true;
+                    }
                     //printf("Message from client %d: %s", sd, buffer);
                     break;
                 }
@@ -214,10 +255,7 @@ void event_loop(s_info server, s_addr server_addr) {
     while(control_flag) {
         system("clear");
         printf("========Server Started Monitoring Linked List=======\n");
-        /*
-        printf("Server hosted in : socket FD%d\n", PORT);
-        socket FD %d, IP: %s, PORT: %d\n
-        */
+
         printf("Server Connected : socket FD %d, IP: %s, PORT: %d\n",
                server.sfd, inet_ntoa(server_addr.addr.sin_addr), ntohs(server_addr.addr.sin_port));
 
@@ -233,6 +271,8 @@ void event_loop(s_info server, s_addr server_addr) {
         }
         printf("Client Connected : %d\n", client_count_track);
         printf("Log : %s\n", log_buffer);
+        printf("List Size (Bytes) : %dB\n", memory_track);
+        printf("Nodes : %d\n", nodes);
         printf("[145] Display Connected info.\n");
         printf("[245] Opeation on linkedlist.\n");
         printf("[345] Exit or Quit Server\n");
@@ -278,11 +318,6 @@ void activate_server() {
     s_info server;
     s_addr server_addr;
     int opt = 1;
-
-    /*
-    struct sockaddr_in address;
-    socklen_t addr_len = sizeof(address);
-    */
 
     if ((server.sfd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
         perror("Socket failed");

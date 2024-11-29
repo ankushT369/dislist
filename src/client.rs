@@ -18,7 +18,7 @@ impl ClientEventData {
         vector.extend(&self.memory_size.to_le_bytes());
         vector.extend(&self.node_count.to_le_bytes());
         vector.push(self.limit as u8);
-        vector.push(self.status as i32 as u8);
+        vector.push(self.status as u8);
         vector
     }
 }
