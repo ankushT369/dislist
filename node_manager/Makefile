@@ -8,7 +8,7 @@ CFLAGS = -Wall -Wextra -g
 TARGET = server
 
 # Source files
-SRCS = node_manager.c
+SRCS = node_manager.c error_codes.c
 
 # Object files (in the build directory)
 OBJS = $(SRCS:%.c=build/%.o)

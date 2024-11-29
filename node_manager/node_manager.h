@@ -2,6 +2,7 @@
 #define NODE_MANAGER_H
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <arpa/inet.h>
 
 #define PORT 8080
@@ -33,12 +34,13 @@ int max_fd = 0, activity = -1, sd = -1;
  *
  */
 
-int client_socket[MAX_CONNECTIONS] = {0};
+//int client_socket[MAX_CONNECTIONS] = {0};
 
 typedef struct node_info_track {
     int32_t memory;
-    int32_t nodes_count;
-    char* process_name;
+    uint32_t nodes_count;
+    bool limit;
+    uint32_t status_code; 
 
 } n_info;
 
@@ -60,16 +62,22 @@ typedef struct server_addr {
 typedef enum operations {
     INSERT,
     DELETE,
-    TRAVERSE
-
+    TRAVERSE,
+    INVALID,
 } c_ops;
 
+enum ip_addr {
+    IP4,
+    IP6,
+};
 
 typedef struct machine_info {
     char* ip_address;
-    char* process_name;
-
-} m_info;
+    enum ip_addr ip_type;
+    bool assigned;
+    bool now_node;
+    uint8_t client_socket;
+} m_list;
 
 
 /* Active the Node manager server */
@@ -78,6 +86,8 @@ void event_loop(s_info, s_addr);
 void new_client_connection(s_info, fd_set, s_addr);
 void client_server_interaction(fd_set);
 void client_message(fd_set);
+void connected_client_details();
+int check_free_client();
 
 
 #endif // NODE_MANAGER_H

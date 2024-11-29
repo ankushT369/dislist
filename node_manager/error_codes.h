@@ -1,0 +1,15 @@
+#ifndef ERROR_CODES_H
+#define ERROR_CODES_H
+
+#define SUCCESS 200
+#define INVALID_SYNTAX_COMMAND_TRAVERSE 1001
+#define INVALID_SYNTAX_COMMAND_INSERT 1002
+#define INVALID_SYNTAX_COMMAND_REMOVE 1003
+#define UNKNOWN_COMMAND 101
+#define OUT_OF_RANGE 102
+#define FAILURE 404
+#define INTERNAL_ERROR 301
+
+void handle_response_code(int, char*);
+
+#endif // ERROR_CODES_H

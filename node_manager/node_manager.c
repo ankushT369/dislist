@@ -7,6 +7,7 @@
  */
 
 #include "node_manager.h"
+#include "error_codes.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -16,9 +17,25 @@
 #include <unistd.h>
 
 uint32_t client_count_track = 0;
+uint8_t client_connection_flag = 0;
+m_list list[MAX_CONNECTIONS];
+char log_buffer[1024];
+bool control_flag = true;
+//enum ip_addr ip;
+
+int check_free_client() {
+    for(int i = 0; i < MAX_CONNECTIONS; i++) {
+        if((list[i].assigned == false) && (list[i].now_node == false)) {
+            return i; 
+        }
+    }
+
+    //printf("All machines are assigned");
+    strcpy(log_buffer, "All machines are assigned");
+    return -1;
+}
 
 void new_client_connection(s_info server, fd_set readfds, s_addr server_addr) {
-
         if (FD_ISSET(server.sfd, &readfds)) {
         server.cfd = accept(server.sfd, (struct sockaddr *)&(server_addr.caddr), &(server_addr.caddr_len));
         if (server.cfd < 0) {
@@ -26,15 +43,30 @@ void new_client_connection(s_info server, fd_set readfds, s_addr server_addr) {
             exit(EXIT_FAILURE);
         }
 
-        printf("New client connected: socket FD %d, IP: %s, PORT: %d\n",
-               server.cfd, inet_ntoa(server_addr.caddr.sin_addr), ntohs(server_addr.caddr.sin_port));
+        FILE *log_file = fopen("client_info.log", "a"); // Open file in append mode
+        if (log_file == NULL) {
+            perror("Error opening log file");
+            return;
+        }
+
+        // Write the formatted message to the file
+        fprintf(log_file, "New client connected: socket FD %d, IP: %s, PORT: %d\n",
+                server.cfd, inet_ntoa(server_addr.caddr.sin_addr), ntohs(server_addr.caddr.sin_port));
+
+        client_connection_flag = 1;
+        fclose(log_file);
 
         // Add new client to the client array
         for (int i = 0; i < MAX_CONNECTIONS; i++) {
-            if (client_socket[i] == 0) {
-                client_socket[i] = server.cfd;
+            if (list[i].client_socket == 0) {
+                list[i].ip_type = IP4;
+                list[i].client_socket = server.cfd;
+                list[i].ip_address = inet_ntoa(server_addr.caddr.sin_addr);
+                list[i].now_node = false;
+                list[i].assigned = false;
+                
                 client_count_track++;
-                printf("Adding client to list at index %d\n", i);
+                // printf("Adding client to list at index %d\n", i);
                 break;
             }
         }
@@ -44,23 +76,62 @@ void new_client_connection(s_info server, fd_set readfds, s_addr server_addr) {
 void client_server_interaction(fd_set readfds) {
     char server_message[BUFFER_SIZE];
     int target_client = -1;
+    int code = -1;
 
     if (FD_ISSET(STDIN_FILENO, &readfds)) {
+        //printf("in the client_server_interaction\n");
         fgets(server_message, sizeof(server_message), stdin);
 
         // Check input
-        if (sscanf(server_message, "%d", &target_client) == 1 && target_client >= 0 && target_client < MAX_CONNECTIONS) {
-            if (client_socket[target_client] > 0) {
-                printf("Enter message to send to client %d: ", target_client);
-                fgets(server_message, sizeof(server_message), stdin);
-                server_message[strcspn(server_message, "\n")] = '\0'; // Remove newline
-                send(client_socket[target_client], server_message, strlen(server_message), 0);
-                printf("Message sent to client %d: %s\n", target_client, server_message);
-            } else {
-                printf("Client %d is not connected.\n", target_client);
+        if(sscanf(server_message, "%d", &code) == 1) {
+            if(code == 145) {
+                connected_client_details();
             }
-        } else {
-            printf("No valid client selected.\n");
+            else if(code == 245) {
+                target_client = check_free_client();
+
+                if (target_client >= 0 && target_client < MAX_CONNECTIONS) {
+                    if (list[target_client].client_socket > 0) {
+                        printf("Enter message to send to client %d: ", list[target_client].client_socket);
+                        fgets(server_message, sizeof(server_message), stdin);
+                        server_message[strcspn(server_message, "\n")] = '\0'; // Remove newline
+                        send(list[target_client].client_socket, server_message, strlen(server_message), 0);
+                        //printf("Message sent to client %d: %s\n", target_client, server_message);
+                        sprintf(log_buffer, "Message sent to client index : %d and socket : %d", target_client, 
+                                list[target_client].client_socket);
+                    } else {
+                        strcpy(log_buffer, "Client is not connected.");
+                        //printf("Client %d is not connected.\n", target_client);
+                    }
+                }
+                else {
+                    strcpy(log_buffer, "No valid number selected");
+                    //printf("No valid client selected.\n");
+                }
+            }
+            else if(code == 345) {
+                control_flag = false;
+                //exit(EXIT_SUCCESS);
+            }
+            else {
+                strcpy(log_buffer, "No valid number selected");
+                //printf("No valid number selected.\n");
+            }
+            /*
+            if (sscanf(server_message, "%d", &code) == 1 && target_client >= 0 && target_client < MAX_CONNECTIONS) {
+                if (client_socket[target_client] > 0) {
+                    printf("Enter message to send to client %d: ", target_client);
+                    fgets(server_message, sizeof(server_message), stdin);
+                    server_message[strcspn(server_message, "\n")] = '\0'; // Remove newline
+                    send(client_socket[target_client], server_message, strlen(server_message), 0);
+                    printf("Message sent to client %d: %s\n", target_client, server_message);
+                } else {
+                    printf("Client %d is not connected.\n", target_client);
+                }
+            } else {
+
+            }
+            */
         }
     }
 }
@@ -68,9 +139,16 @@ void client_server_interaction(fd_set readfds) {
 
 void client_message(fd_set readfds) {
     char buffer[BUFFER_SIZE];
+    FILE *log_file = fopen("client_info.log", "a"); // Open file in append mode
+    if (log_file == NULL) {
+        perror("Error opening log file");
+        return;
+    }
 
     for (int i = 0; i < MAX_CONNECTIONS; i++) {
-        sd = client_socket[i];
+        //sd = client_socket[i];
+
+        sd = list[i].client_socket;
 
         if (FD_ISSET(sd, &readfds)) {
             if(sd != 0) {
@@ -78,15 +156,21 @@ void client_message(fd_set readfds) {
                 if (bytes_read == 0) {
                     // Client disconnected
                     client_count_track--;
-                    printf("Client disconnected: socket FD %d\n", sd);
+                    // printf("Client disconnected: socket FD %d\n", sd);
+                    fprintf(log_file, "Client disconnected: socket FD %d\n", sd);
+
+                    client_connection_flag = 1;
+
+                    fclose(log_file);
                     close(sd);
-                    client_socket[i] = 0;
+                    list[i].client_socket = 0;
                     break;
                 } 
                 else {
                     // Print message from client
                     buffer[bytes_read] = '\0'; // Null-terminate the string
-                    printf("Message from client %d: %s\n", sd, buffer);
+                    //handle_response_code(200, log_buffer);
+                    //printf("Message from client %d: %s", sd, buffer);
                     break;
                 }
             }
@@ -96,15 +180,39 @@ void client_message(fd_set readfds) {
 }
 
 void connected_client_details() {
+    uint8_t input = 1;
+    system("clear");
+
+    while(input) {
+        if(client_connection_flag == 0) {
+            // printf("No Client Connected..\n");
+        }
+        else {
+            FILE *file = fopen("client_info.log", "r"); // Open file in read mode
+            if (file == NULL) {
+                perror("Error opening file");
+                return;
+            }
+
+            char line[256]; // Buffer to store each line of the file
+            while (fgets(line, sizeof(line), file) != NULL) {
+                printf("%s", line); // Print each line to the console
+            }
+
+            fclose(file); // Close the file
+        }
+
+        printf("[0] Back to previous page\n");
+        scanf("%hhd", &input);
+    }
 
 }
 
 void event_loop(s_info server, s_addr server_addr) {
     fd_set readfds;
-    uint8_t input;
 
-    while(1) {
-        //system("clear");
+    while(control_flag) {
+        system("clear");
         printf("========Server Started Monitoring Linked List=======\n");
         /*
         printf("Server hosted in : socket FD%d\n", PORT);
@@ -113,10 +221,21 @@ void event_loop(s_info server, s_addr server_addr) {
         printf("Server Connected : socket FD %d, IP: %s, PORT: %d\n",
                server.sfd, inet_ntoa(server_addr.addr.sin_addr), ntohs(server_addr.addr.sin_port));
 
+        if(client_count_track == 0) {
+            printf("\033[1;31m");  // Set the color to red
+            printf("● ");  // Print the red circle
+            printf("\033[0m");
+        }
+        else {
+            printf("\033[1;32m");  // Set the color to green
+            printf("● ");  // Print the green circle
+            printf("\033[0m");
+        }
         printf("Client Connected : %d\n", client_count_track);
-        printf("[1] Display Connected info.\n");
-        printf("[2] Opeation on linkedlist.\n");
-        //printf("");
+        printf("Log : %s\n", log_buffer);
+        printf("[145] Display Connected info.\n");
+        printf("[245] Opeation on linkedlist.\n");
+        printf("[345] Exit or Quit Server\n");
 
         FD_ZERO(&readfds);
         // Add the server socket to the set
@@ -125,7 +244,7 @@ void event_loop(s_info server, s_addr server_addr) {
 
         // Add client sockets to the set
         for (int i = 0; i < MAX_CONNECTIONS; i++) {
-            sd = client_socket[i];
+            sd = list[i].client_socket;
             if (sd > 0) {
                 FD_SET(sd, &readfds);
             }
@@ -193,6 +312,8 @@ void activate_server() {
 
     /* Event-loop starts */
     event_loop(server, server_addr);
+
+    printf("Quiting Server...\n");
 
     // close(server.cfd);
     close(server.sfd);
