@@ -1,5 +1,5 @@
 # Ignore the build directory and its contents
-node_manager/build/
+build/
 
 # Ignore the client_info.log file
-node_manager/client_info.log
+client_info.log
