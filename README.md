@@ -8,3 +8,26 @@ This code is not meant to contribution because its too much unreadable and If yo
 Clone it if you have Rust and gcc installed otherwise you have to setup by yourself.
 
 ![My Photo](images/dislist.png)
+
+
+```
+.
+├── Cargo.lock
+├── Cargo.toml
+├── images
+│   └── dislist.png
+├── node_manager
+│   ├── error_codes.c
+│   ├── error_codes.h
+│   ├── Makefile
+│   ├── node_manager.c
+│   └── node_manager.h
+├── README.md
+└── src
+    ├── client.rs
+    ├── main.rs
+    ├── parser.rs
+    └── utility.rs
+
+3 directories, 13 files
+```
