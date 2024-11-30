@@ -69,7 +69,7 @@ typedef struct server_addr {
 
 typedef enum operations {
     INSERT,
-    DELETE,
+    REMOVE,
     TRAVERSE,
     INVALID,
 } c_ops;
@@ -80,6 +80,7 @@ typedef struct machine_info {
     bool now_node;
     uint8_t client_socket;
     uint8_t nodes_number;
+    c_ops cannot_perform;
 } m_list;
 
 
@@ -93,6 +94,7 @@ void connected_client_details();
 int check_free_client();
 n_info deserialize_node_info(unsigned char*);
 void update_list(n_info);
+void traverse_clients();
 
 /* For Debugging purposes */
 void print(n_info);

@@ -62,8 +62,9 @@ pub fn parse(data: &str) -> Result<InstructionInfo, Status> {
                     println!("Valid command: INSERT {}", num);
                     return Ok(instance);
                 } else {
+                    println!("Hii");
                     println!("Invalid number: {}", parts[0]);
-                    return Err(Status::InvalidSyntaxCommandInsert);
+                    return Err(Status::OutOfRange);
                 }
             } else {
                 return Err(Status::InvalidSyntaxCommandInsert);

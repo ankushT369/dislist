@@ -25,7 +25,6 @@ uint32_t nodes = 0;
 
 m_list list[MAX_CONNECTIONS];
 char log_buffer[1024];
-
 n_info node;
 
 // Deserialize the received buffer into a NodeInfo struct
@@ -56,10 +55,17 @@ void update_list(n_info node) {
     memory_track += 4 * nodes;
 }
 
+void traverse_clients() {
+    //send(list[].client_socket, server_message, strlen(server_message), 0);
+    for(int i = 0; i < MAX_CONNECTIONS; i++) {
+
+    }
+
+}
+
 /* For Debug Purposes */
 void print(n_info node) {
     printf("%d\n", node.memory_size);
-    printf("%d\n", node.node_count);
     printf("%d\n", node.limit);
     printf("%d\n", node.status_code);
 }
@@ -105,6 +111,7 @@ void new_client_connection(s_info server, fd_set readfds, s_addr server_addr) {
                 list[i].now_node = true;
                 list[i].assigned = false;
                 list[i].nodes_number = 0;
+                list[i].cannot_perform = REMOVE;
                 
                 client_count_track++;
                 // printf("Adding client to list at index %d\n", i);
@@ -134,9 +141,28 @@ void client_server_interaction(fd_set readfds) {
                 if (target_client >= 0 && target_client < MAX_CONNECTIONS) {
                     if (list[target_client].client_socket > 0) {
                         printf("Enter message to send to client %d: ", list[target_client].client_socket);
+
                         fgets(server_message, sizeof(server_message), stdin);
+                        if(strcmp(server_message, "REMOVE\n") == 0) {
+                            if(list[target_client].cannot_perform == REMOVE && list[target_client].nodes_number == 0) {
+                                if(target_client > 0)
+                                    target_client--;
+                                else {
+                                    strcpy(log_buffer, "Cannot Perform REMOVE Operation list-empty");
+                                    return ;
+                                }
+                            }
+                        }
+
+                        if(strcmp(server_message, "TRAVERSE\n") == 0) {
+                            traverse_clients();
+                            strcpy(log_buffer, "Its not currently implemented!!.");
+
+                            return;
+                        }
                         server_message[strcspn(server_message, "\n")] = '\0'; // Remove newline
                         send(list[target_client].client_socket, server_message, strlen(server_message), 0);
+
                         //printf("Message sent to client %d: %s\n", target_client, server_message);
                         sprintf(log_buffer, "Message sent to client index : %d and socket : %d", target_client, 
                                 list[target_client].client_socket);
@@ -187,10 +213,14 @@ void client_message(fd_set readfds) {
 
                     fclose(log_file);
                     close(sd);
+
                     list[i].client_socket = 0;
                     list[i].assigned = false;
                     list[i].now_node = false;
                     list[i].nodes_number = 0;
+                    list[i].cannot_perform = REMOVE;
+
+                    update_list(node);
 
                     break;
                 } 
@@ -210,6 +240,15 @@ void client_message(fd_set readfds) {
                     if(node.limit == true) {
                         list[i].now_node = false;
                         list[i].assigned = true;
+                        list[i].cannot_perform = INSERT;
+                    }
+                    else {
+                        if(list[i].nodes_number == 0) {
+                            list[i].cannot_perform = REMOVE;
+                        }
+                        else {
+                            list[i].cannot_perform = INVALID;
+                        }
                     }
                     //printf("Message from client %d: %s", sd, buffer);
                     break;
@@ -355,7 +394,7 @@ void activate_server() {
 }
 
 
-int main(int argc, char* argv[]) {
+int main() {
     activate_server(); 
     return 0;
 }
