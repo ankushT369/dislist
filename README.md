@@ -9,6 +9,7 @@ Clone it if you have Rust and gcc installed otherwise you have to setup by yours
 
 ![My Photo](images/dislist.png)
 
+### Directory Map
 
 ```
 .
@@ -16,18 +17,35 @@ Clone it if you have Rust and gcc installed otherwise you have to setup by yours
 ├── Cargo.toml
 ├── images
 │   └── dislist.png
-├── node_manager
+├── node_manager                (Server side which manages the clients)
 │   ├── error_codes.c
 │   ├── error_codes.h
 │   ├── Makefile
 │   ├── node_manager.c
 │   └── node_manager.h
 ├── README.md
-└── src
+└── src                         (Client side which manages the linked-lis)
     ├── client.rs
     ├── main.rs
     ├── parser.rs
     └── utility.rs
 
 3 directories, 13 files
+
+14 text files.
+14 unique files.                              
+4 files ignored.
+
+-------------------------------------------------------------------------------
+Language                     files          blank        comment           code
+-------------------------------------------------------------------------------
+C                                2             78             37            320
+Rust                             4             39             13            207
+C/C++ Header                     2             22             33             64
+Markdown                         1              8              0             27
+make                             1             11             12             18
+TOML                             1              2              1              6
+-------------------------------------------------------------------------------
+SUM:                            11            160             96            642
+-------------------------------------------------------------------------------
 ```
